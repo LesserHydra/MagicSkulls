@@ -1,0 +1,4 @@
+name: MagicSkulls
+main: @mainClass@
+version: @version@
+author: Roboboy
