@@ -12,6 +12,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.inventory.AnvilInventory;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
@@ -37,7 +38,7 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onPrepareAnvilSkull(PrepareAnvilEvent event) {
 		AnvilInventory inv = event.getInventory();
-		//Must be skull
+		//Must be empty skull
 		ItemStack skull = inv.getItem(0);
 		if (!isEmptySkull(skull)) return;
 		
@@ -59,7 +60,9 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 	public void onClickResultSkull(InventoryClickEvent event) {
 		if (event.getSlotType() != InventoryType.SlotType.RESULT) return;
 		if (event.getInventory().getType() != InventoryType.ANVIL) return;
-		if (event.getCursor() != null && event.getCursor().getType() != Material.AIR) return;
+		
+		boolean shiftClick = event.isShiftClick();
+		if (!shiftClick && (event.getCursor() != null && event.getCursor().getType() != Material.AIR)) return;
 		
 		AnvilInventory inv = (AnvilInventory) event.getInventory();
 		ItemStack skull = inv.getItem(0);
@@ -70,6 +73,7 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 		
 		ItemStack resultSkull = inv.getItem(2);
 		if (resultSkull == null || resultSkull.getType() != Material.SKULL_ITEM) return;
+		if (shiftClick && !inventoryHasRoom(event.getWhoClicked().getInventory(), resultSkull)) return;
 		
 		event.setCancelled(true);
 		
@@ -78,9 +82,10 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 		getServer().getScheduler().runTask(this, () -> {
 			inv.setItem(0, new ItemStack(Material.AIR));
 			inv.setItem(2, new ItemStack(Material.AIR));
-			view.setCursor(resultSkull);
-			inv.getLocation().getWorld().playSound(inv.getLocation(), Sound.ENTITY_FIREWORK_LARGE_BLAST, 1.0F, 2F);
-			inv.getLocation().getWorld().spawnParticle(Particle.CLOUD, inv.getLocation().add(0.5, 0.6, 0.5), 50, 0, 0, 0, 0.4);
+			if (shiftClick) human.getInventory().addItem(resultSkull);
+			else view.setCursor(resultSkull);
+			inv.getLocation().getWorld().playSound(inv.getLocation(), Sound.BLOCK_ANVIL_LAND, 0.7F, 2F);
+			inv.getLocation().getWorld().spawnParticle(Particle.CLOUD, inv.getLocation().add(0.5, 0.6, 0.5), 20, 0.2, 0.05, 0.2, 0.05);
 		});
 	}
 	
@@ -119,6 +124,26 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 		result.setItemMeta(resultMeta);
 		
 		return result;
+	}
+	
+	/**
+	 * Checks whether of not the given inventory has room for the given item stack.
+	 * Note that this assumes the item stack fits in a single empty space.
+	 * @param inv The inventory
+	 * @param item The item stack
+	 * @return Whether the inventory has room
+	 */
+	private boolean inventoryHasRoom(Inventory inv, ItemStack item) {
+		int numRemaining = item.getAmount();
+		ItemStack[] contents = inv.getStorageContents();
+		for (ItemStack currentItem : contents) {
+			if (currentItem == null || currentItem.getType() == Material.AIR) return true;
+			if (!item.isSimilar(currentItem)) continue;
+			
+			numRemaining -= currentItem.getMaxStackSize() - currentItem.getAmount();
+			if (numRemaining <= 0) return true;
+		}
+		return false;
 	}
 	
 }
