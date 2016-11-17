@@ -8,7 +8,7 @@ apply plugin: 'eclipse'
 import org.ajoberstar.grgit.*
 import org.apache.tools.ant.filters.ReplaceTokens
 
-version = 'PREALPHA'//generateVersion('0.1')
+version = generateVersion('1.0')
 String pluginMain = 'com.lesserhydra.magicskulls.MagicSkulls'
 
 repositories {
@@ -20,7 +20,8 @@ repositories {
 }
 
 dependencies {
-  compile 'org.bukkit:craftbukkit:1.10.2-R0.1-SNAPSHOT'
+  compile 'org.jetbrains:annotations:15.0'
+  compile 'org.bukkit:bukkit:1.11-R0.1-SNAPSHOT'
 }
 
 //Generate plugin.yml
@@ -33,8 +34,8 @@ processResources {
   ])
 }
 
-String generateVersion(workingVersion) {
-  Grgit repo = Grgit.open(project.file('.'))
+static String generateVersion(workingVersion) {
+  Grgit repo = Grgit.open()
   Tag currentTag = repo.tag.list().find {it.commit == repo.head()}
 
   if (currentTag == null) return workingVersion + '-SNAPSHOT'

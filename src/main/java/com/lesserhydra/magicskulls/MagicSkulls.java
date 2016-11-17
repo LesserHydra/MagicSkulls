@@ -1,6 +1,6 @@
 package com.lesserhydra.magicskulls;
 
-import com.lesserhydra.magicskulls.volitilecode.NMSSkullUtil;
+import com.lesserhydra.bukkitutil.SkullUtil;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -94,7 +94,7 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 		//Must be player skull
 		if (skull.getDurability() != 3) return false;
 		//Must be blank
-		return NMSSkullUtil.skullIsEmpty(skull);
+		return SkullUtil.skullIsEmpty(skull);
 	}
 	
 	private ItemStack createResultSkull(List<String> pages) {
@@ -108,7 +108,7 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 			if (!valueMatcher.find()) return null;
 			ItemStack result = new ItemStack(Material.SKULL_ITEM);
 			result.setDurability((short) 3);
-			return NMSSkullUtil.setTexture(result, idMatcher.group(1), valueMatcher.group(1));
+			return SkullUtil.setTexture(result, idMatcher.group(1), valueMatcher.group(1));
 		}
 		
 		//Try username
