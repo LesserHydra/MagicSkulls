@@ -21,7 +21,7 @@ repositories {
 
 dependencies {
   compile 'org.jetbrains:annotations:15.0'
-  compile 'org.bukkit:bukkit:1.11-R0.1-SNAPSHOT'
+  compile 'org.bukkit:bukkit:1.12-R0.1-SNAPSHOT'
 }
 
 //Generate plugin.yml

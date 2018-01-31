@@ -17,13 +17,9 @@ public class SkullUtil {
 		NbtFactory.NbtCompound skullOwner = tag.getMap("SkullOwner", true);
 		skullOwner.put("Id", id);
 		
-		NbtFactory.NbtCompound properties = tag.getMap("Properties", true);
-		
-		NbtFactory.NbtList textures = properties.getList("textures", true);
-		
 		NbtFactory.NbtCompound textureCompound = NbtFactory.createCompound();
 		textureCompound.put("Value", texture);
-		textures.add(textureCompound);
+		tag.putPath("Properties.textures", NbtFactory.createList(textureCompound));
 		
 		return craftSkull;
 	}

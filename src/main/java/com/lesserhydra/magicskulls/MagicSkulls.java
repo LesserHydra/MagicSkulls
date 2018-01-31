@@ -35,24 +35,44 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 		getServer().getPluginManager().registerEvents(this, this);
 	}
 	
+	private static class SkullCombine {
+		final ItemStack skull;
+		final ItemStack other;
+		final int skullSlot;
+		final int otherSlot;
+		
+		SkullCombine(ItemStack skull, ItemStack other, int skullSlot, int otherSlot) {
+			this.skull = skull;
+			this.other = other;
+			this.skullSlot = skullSlot;
+			this.otherSlot = otherSlot;
+		}
+	}
+	
+	private static SkullCombine decideCombination(ItemStack first, ItemStack second) {
+		if (isPlayerSkull(first)) return new SkullCombine(first, second, 0, 1);
+		else if (isPlayerSkull(second)) return new SkullCombine(second, first, 1, 0);
+		else return null;
+	}
+	
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onPrepareAnvilSkull(PrepareAnvilEvent event) {
 		AnvilInventory inv = event.getInventory();
+		
 		//Must be empty skull
-		ItemStack skull = inv.getItem(0);
-		if (!isEmptySkull(skull)) return;
+		SkullCombine combine = decideCombination(inv.getItem(0), inv.getItem(1));
+		if (combine == null) return;
 		
 		//Second item must be written book
-		ItemStack book = inv.getItem(1);
-		if (book == null || !(book.getType() == Material.BOOK_AND_QUILL || book.getType() == Material.WRITTEN_BOOK)) return;
+		if (!isBook(combine.other)) return;
 		
-		BookMeta bookMeta = (BookMeta) book.getItemMeta();
+		BookMeta bookMeta = (BookMeta) combine.other.getItemMeta();
 		if (!bookMeta.hasPages()) return;
 		
 		ItemStack result = createResultSkull(bookMeta.getPages());
 		if (result == null) return;
 		
-		result.setAmount(skull.getAmount());
+		result.setAmount(combine.skull.getAmount());
 		event.setResult(result);
 	}
 	
@@ -65,11 +85,10 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 		if (!shiftClick && (event.getCursor() != null && event.getCursor().getType() != Material.AIR)) return;
 		
 		AnvilInventory inv = (AnvilInventory) event.getInventory();
-		ItemStack skull = inv.getItem(0);
-		if (!isEmptySkull(skull)) return;
+		SkullCombine combine = decideCombination(inv.getItem(0), inv.getItem(1));
+		if (combine == null) return;
 		
-		ItemStack book = inv.getItem(1);
-		if (book == null || !(book.getType() == Material.BOOK_AND_QUILL || book.getType() == Material.WRITTEN_BOOK)) return;
+		if (!isBook(combine.other)) return;
 		
 		ItemStack resultSkull = inv.getItem(2);
 		if (resultSkull == null || resultSkull.getType() != Material.SKULL_ITEM) return;
@@ -80,7 +99,7 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 		HumanEntity human = event.getWhoClicked();
 		InventoryView view = event.getView();
 		getServer().getScheduler().runTask(this, () -> {
-			inv.setItem(0, new ItemStack(Material.AIR));
+			inv.setItem(combine.skullSlot, new ItemStack(Material.AIR));
 			inv.setItem(2, new ItemStack(Material.AIR));
 			if (shiftClick) human.getInventory().addItem(resultSkull);
 			else view.setCursor(resultSkull);
@@ -89,15 +108,19 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 		});
 	}
 	
-	private boolean isEmptySkull(ItemStack skull) {
+	private static boolean isPlayerSkull(ItemStack skull) {
 		if (skull == null || skull.getType() != Material.SKULL_ITEM) return false;
-		//Must be player skull
-		if (skull.getDurability() != 3) return false;
-		//Must be blank
-		return SkullUtil.skullIsEmpty(skull);
+		//MAGIC: Player skull
+		return skull.getDurability() == 3;
 	}
 	
-	private ItemStack createResultSkull(List<String> pages) {
+	private static boolean isBook(ItemStack book) {
+		if (book == null) return false;
+		return book.getType() == Material.BOOK_AND_QUILL
+				|| book.getType() == Material.WRITTEN_BOOK;
+	}
+	
+	private static ItemStack createResultSkull(List<String> pages) {
 		String bookText = pages.stream()
 				.collect(Collectors.joining());
 		
@@ -106,18 +129,18 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 		Matcher valueMatcher = textureValuePattern.matcher(bookText);
 		if (idMatcher.find()) {
 			if (!valueMatcher.find()) return null;
-			ItemStack result = new ItemStack(Material.SKULL_ITEM);
-			result.setDurability((short) 3);
+			//MAGIC: Player skull
+			ItemStack result = new ItemStack(Material.SKULL_ITEM, 1, (short) 3);
 			return SkullUtil.setTexture(result, idMatcher.group(1), valueMatcher.group(1));
 		}
 		
 		//Try username
 		Matcher usernameMatcher = usernamePattern.matcher(bookText);
-		if (!usernameMatcher.find()) return null;
+		if (!usernameMatcher.matches()) return null;
 		String username = usernameMatcher.group();
 		
-		ItemStack result = new ItemStack(Material.SKULL_ITEM);
-		result.setDurability((short) 3);
+		//MAGIC: Player skull
+		ItemStack result = new ItemStack(Material.SKULL_ITEM, 1, (short) 3);
 		
 		SkullMeta resultMeta = (SkullMeta) result.getItemMeta();
 		resultMeta.setOwner(username);
@@ -133,7 +156,7 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 	 * @param item The item stack
 	 * @return Whether the inventory has room
 	 */
-	private boolean inventoryHasRoom(Inventory inv, ItemStack item) {
+	private static boolean inventoryHasRoom(Inventory inv, ItemStack item) {
 		int numRemaining = item.getAmount();
 		ItemStack[] contents = inv.getStorageContents();
 		for (ItemStack currentItem : contents) {
