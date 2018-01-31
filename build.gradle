@@ -8,7 +8,7 @@ apply plugin: 'eclipse'
 import org.ajoberstar.grgit.*
 import org.apache.tools.ant.filters.ReplaceTokens
 
-version = generateVersion('1.1')
+version = generateVersion('1.2')
 String pluginMain = 'com.lesserhydra.magicskulls.MagicSkulls'
 
 repositories {
