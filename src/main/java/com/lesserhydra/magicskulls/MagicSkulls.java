@@ -1,6 +1,12 @@
 package com.lesserhydra.magicskulls;
 
-import com.lesserhydra.bukkitutil.SkullUtil;
+import com.lesserhydra.bukkitutil.InventoryUtil;
+import com.lesserhydra.bukkitutil.nbt.NbtCompound;
+import com.lesserhydra.bukkitutil.nbt.NbtFactory;
+import com.lesserhydra.bukkitutil.nbt.NbtType;
+import com.lesserhydra.bukkitutil.volatilecode.MirrorItemStack;
+import com.lesserhydra.hydracore.HydraCore;
+import com.lesserhydra.util.Version;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -26,12 +32,33 @@ import java.util.stream.Collectors;
 
 public class MagicSkulls extends JavaPlugin implements Listener {
 	
+	private static final int CORE_MAJOR = 2;
+	private static final int CORE_MINOR = 0;
+	
 	private static final Pattern usernamePattern = Pattern.compile("[a-zA-Z0-9_]{3,16}");
 	private static final Pattern textureIdPattern = Pattern.compile("Id:\"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\"");
 	private static final Pattern textureValuePattern = Pattern.compile("Value:\"([a-zA-Z0-9+/]+={0,2})\"");
 	
 	@Override
 	public void onEnable() {
+		assert HydraCore.isLoaded();
+		Version.Compat coreCompat = HydraCore.expectVersion(CORE_MAJOR, CORE_MINOR);
+		if (coreCompat != Version.Compat.MATCH) {
+			if (coreCompat.isOutdated()) {
+				getLogger().severe("The loaded version of HydraCore is outdated! Please update to "
+						+ CORE_MAJOR + "." + CORE_MINOR + "+.");
+				//TODO: Link
+			}
+			else {
+				getLogger().severe("The loaded version of HydraCore is incompatible with this " +
+						"version of Automation. Please update Automation or downgrade HydraCore to "
+						+ CORE_MAJOR + "." + CORE_MINOR + "+.");
+				//TODO: Links
+			}
+			getPluginLoader().disablePlugin(this);
+			return;
+		}
+		
 		getServer().getPluginManager().registerEvents(this, this);
 	}
 	
@@ -59,11 +86,13 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 	public void onPrepareAnvilSkull(PrepareAnvilEvent event) {
 		AnvilInventory inv = event.getInventory();
 		
-		//Must be empty skull
 		SkullCombine combine = decideCombination(inv.getItem(0), inv.getItem(1));
 		if (combine == null) return;
 		
-		//Second item must be written book
+		//Skull must be empty
+		if (!skullIsEmpty(combine.skull)) return;
+		
+		//Other item must be written book
 		if (!isBook(combine.other)) return;
 		
 		BookMeta bookMeta = (BookMeta) combine.other.getItemMeta();
@@ -131,7 +160,7 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 			if (!valueMatcher.find()) return null;
 			//MAGIC: Player skull
 			ItemStack result = new ItemStack(Material.SKULL_ITEM, 1, (short) 3);
-			return SkullUtil.setTexture(result, idMatcher.group(1), valueMatcher.group(1));
+			return setSkullTexture(result, idMatcher.group(1), valueMatcher.group(1));
 		}
 		
 		//Try username
@@ -167,6 +196,29 @@ public class MagicSkulls extends JavaPlugin implements Listener {
 			if (numRemaining <= 0) return true;
 		}
 		return false;
+	}
+	
+	private static boolean skullIsEmpty(ItemStack item) {
+		NbtCompound tag = InventoryUtil.getItemTag(InventoryUtil.getMirrorItemStack(item), false);
+		return tag == null || !tag.hasKey("SkullOwner");
+	}
+	
+	private static ItemStack setSkullTexture(ItemStack skull, String id, String texture) {
+		MirrorItemStack craftSkull = InventoryUtil.getMirrorItemStack(skull);
+		NbtCompound tag = InventoryUtil.getItemTag(craftSkull, true);
+		
+		NbtCompound textureCompound = NbtFactory.makeCompound()
+				.set("Value", texture);
+		//TODO: .set("Signature", signature);
+		
+		tag.getCompound("SkullOwner", true)
+				.set("Id", id);
+		
+		tag.getCompound("Properties", true)
+				.getList("textures", NbtType.COMPOUND, true)
+				.add(textureCompound);
+		
+		return craftSkull;
 	}
 	
 }
